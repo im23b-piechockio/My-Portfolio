@@ -5,24 +5,13 @@ import { FaGithub, FaLinkedin, FaEnvelope, FaPhone, FaMoon, FaSun, FaArrowUp } f
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 
-interface Star {
-  x: number
-  y: number
-  size: number
-  opacity: number
-  color: string
-  connections: number[]
-}
-
 export default function Home() {
   const { scrollY } = useScroll()
   const opacity = useTransform(scrollY, [0, 100], [0, 1])
   const [darkMode, setDarkMode] = useState(false)
   const [konamiCode, setKonamiCode] = useState('')
-  const [stars, setStars] = useState<Star[]>([])
   const [showBackToTop, setShowBackToTop] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,102 +22,6 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Initialize stars
-  useEffect(() => {
-    const colors = ['#1E3A8A', '#2563EB', '#3B82F6', '#60A5FA']
-    const createStars = () => {
-      const newStars = Array.from({ length: 50 }, () => ({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        size: Math.random() * 3 + 2,
-        opacity: 0,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        connections: []
-      }))
-      setStars(newStars)
-    }
-
-    createStars()
-  }, [])
-
-  // Animate stars and draw connections
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const animate = () => {
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-
-      // Update canvas size
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-
-      // Update stars
-      setStars(prevStars => 
-        prevStars.map(star => ({
-          ...star,
-          opacity: Math.min(star.opacity + 0.02, 1),
-          connections: []
-        }))
-      )
-
-      // Draw stars and connections
-      stars.forEach((star, i) => {
-        // Draw star
-        ctx.beginPath()
-        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2)
-        ctx.fillStyle = star.color
-        ctx.globalAlpha = star.opacity
-        ctx.fill()
-
-        // Add glow effect
-        ctx.beginPath()
-        ctx.arc(star.x, star.y, star.size * 2, 0, Math.PI * 2)
-        ctx.fillStyle = star.color
-        ctx.globalAlpha = star.opacity * 0.3
-        ctx.fill()
-
-        // Find and draw connections
-        stars.forEach((otherStar, j) => {
-          if (i === j) return
-
-          const dx = star.x - otherStar.x
-          const dy = star.y - otherStar.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
-
-          if (distance < 300) {
-            ctx.beginPath()
-            ctx.moveTo(star.x, star.y)
-            ctx.lineTo(otherStar.x, otherStar.y)
-            ctx.strokeStyle = star.color
-            ctx.globalAlpha = (1 - distance / 300) * 0.4
-            ctx.lineWidth = 1.5
-            ctx.stroke()
-          }
-        })
-      })
-
-      requestAnimationFrame(animate)
-    }
-
-    animate()
-
-    // Handle window resize
-    const handleResize = () => {
-      if (canvas) {
-        canvas.width = window.innerWidth
-        canvas.height = window.innerHeight
-      }
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [stars])
-
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId)
     if (element) {
@@ -138,13 +31,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-dark text-white relative overflow-hidden">
-      {/* Starry Background Canvas */}
-      <canvas
-        ref={canvasRef}
-        className="fixed inset-0 z-0"
-        style={{ background: 'linear-gradient(to bottom right, #1E3A8A, #2563EB, #1E3A8A)' }}
-      />
-
       {/* Professional Gradient Background */}
       <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-navy-900" />
 
@@ -162,11 +48,11 @@ export default function Home() {
       >
         <div className="container mx-auto px-4 py-4 flex justify-end items-center">
           <div className="flex gap-6">
-            {['Home', 'Skills', 'Projects', 'Contact'].map((item) => (
+            {['Start', 'Technologien & Tools', 'Projekte', 'Kontakt'].map((item) => (
               <motion.a
                 key={item}
                 whileHover={{ scale: 1.1 }}
-                href={`#${item.toLowerCase()}`}
+                href={`#${item.toLowerCase().replace(' & ', '-').replace(' ', '-')}`}
                 className="text-white hover:text-blue-400 transition-colors"
               >
                 {item}
@@ -177,7 +63,7 @@ export default function Home() {
       </motion.nav>
 
       {/* Hero Section */}
-      <section id="home" className="container mx-auto px-4 py-20 min-h-screen flex items-center justify-center relative">
+      <section id="start" className="container mx-auto px-4 py-20 min-h-screen flex items-center justify-center relative">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -211,14 +97,11 @@ export default function Home() {
           <h2 className="text-2xl text-blue-400 mb-6">
             Applikationsentwickler EFZ | Frontend Developer
           </h2>
-          <p className="text-xl text-gray-200 mb-8 max-w-2xl">
-            Spezialisiert auf moderne Frontend-Entwicklung mit React, TypeScript und Tailwind CSS
-          </p>
           <div className="flex gap-4">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => scrollToSection('projects')}
+              onClick={() => scrollToSection('projekte')}
               className="bg-primary hover:bg-accent-blue text-white px-6 py-3 rounded-lg transition-colors"
             >
               Projekte
@@ -226,7 +109,7 @@ export default function Home() {
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => scrollToSection('contact')}
+              onClick={() => scrollToSection('kontakt')}
               className="border border-primary text-primary hover:bg-primary hover:text-white px-6 py-3 rounded-lg transition-colors"
             >
               Kontakt
@@ -236,44 +119,108 @@ export default function Home() {
       </section>
 
       {/* Skills Section */}
-      <section id="skills" className="container mx-auto px-4 py-20 relative">
-        <div className="max-w-4xl mx-auto bg-gray-900/40 backdrop-blur-sm p-8 rounded-2xl border border-gray-800/50">
-          <h2 className="text-3xl font-bold mb-12 text-center text-white">Technologien</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { name: 'React', level: 'Experte', color: '#61DAFB' },
-              { name: 'TypeScript', level: 'Fortgeschritten', color: '#3178C6' },
-              { name: 'Tailwind CSS', level: 'Experte', color: '#06B6D4' },
-              { name: 'JavaScript', level: 'Experte', color: '#F7DF1E' },
-              { name: 'HTML/CSS', level: 'Experte', color: '#E34F26' },
-              { name: 'React Native', level: 'Fortgeschritten', color: '#00D8FF' },
-              { name: 'Node.js', level: 'Fortgeschritten', color: '#339933' },
-              { name: 'MongoDB', level: 'Fortgeschritten', color: '#47A248' }
-            ].map((skill) => (
-              <motion.div
-                key={skill.name}
-                whileHover={{ scale: 1.05, rotate: 2 }}
-                className="bg-gray-800/50 p-6 rounded-lg shadow-lg hover:shadow-xl transition-all border border-gray-700/50"
-              >
-                <h3 className="text-xl font-semibold mb-2 text-white">{skill.name}</h3>
-                <div className="w-full bg-gray-700/50 rounded-full h-2.5">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    whileInView={{ width: '100%' }}
-                    transition={{ duration: 1, ease: "easeOut" }}
-                    className="h-2.5 rounded-full"
-                    style={{ backgroundColor: skill.color }}
-                  />
-                </div>
-                <p className="text-blue-400 mt-2">{skill.level}</p>
-              </motion.div>
-            ))}
+      <section id="technologien-tools" className="container mx-auto px-4 py-20 relative">
+        <div className="max-w-6xl mx-auto bg-gray-900/40 backdrop-blur-sm p-8 rounded-2xl border border-gray-800/50">
+          <h2 className="text-3xl font-bold mb-12 text-center text-white">Technologien & Tools</h2>
+          
+          {/* Programming Languages */}
+          <div className="mb-12">
+            <h3 className="text-xl font-semibold mb-6 text-blue-400 text-center">Programmiersprachen</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {[
+                { name: 'JavaScript', color: '#F7DF1E' },
+                { name: 'TypeScript', color: '#3178C6' },
+                { name: 'HTML', color: '#E34F26' },
+                { name: 'CSS', color: '#1572B6' },
+                { name: 'Python', color: '#3776AB' },
+                { name: 'Java', color: '#007396' },
+                { name: 'SQL', color: '#336791' },
+                { name: 'Bash', color: '#4EAA25' }
+              ].map((tech) => (
+                <motion.div
+                  key={tech.name}
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-gray-800/50 p-4 rounded-lg shadow-lg hover:shadow-xl transition-all border border-gray-700/50 flex items-center justify-center group"
+                >
+                  <h3 className="text-lg font-medium text-white group-hover:text-blue-400 transition-colors">{tech.name}</h3>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Frontend Technologies */}
+          <div className="mb-12">
+            <h3 className="text-xl font-semibold mb-6 text-blue-400 text-center">Frontend</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {[
+                { name: 'React', color: '#61DAFB' },
+                { name: 'Next.js', color: '#000000' },
+                { name: 'Tailwind CSS', color: '#06B6D4' },
+                { name: 'Bootstrap', color: '#7952B3' },
+                { name: 'Vite', color: '#646CFF' }
+              ].map((tech) => (
+                <motion.div
+                  key={tech.name}
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-gray-800/50 p-4 rounded-lg shadow-lg hover:shadow-xl transition-all border border-gray-700/50 flex items-center justify-center group"
+                >
+                  <h3 className="text-lg font-medium text-white group-hover:text-blue-400 transition-colors">{tech.name}</h3>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Backend & Database */}
+          <div className="mb-12">
+            <h3 className="text-xl font-semibold mb-6 text-blue-400 text-center">Backend & Datenbanken</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {[
+                { name: 'Node.js', color: '#339933' },
+                { name: 'MongoDB', color: '#47A248' },
+                { name: 'MySQL', color: '#4479A1' },
+                { name: 'REST API', color: '#FF6B6B' },
+                { name: 'Docker', color: '#2496ED' },
+                { name: 'AWS', color: '#FF9900' }
+              ].map((tech) => (
+                <motion.div
+                  key={tech.name}
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-gray-800/50 p-4 rounded-lg shadow-lg hover:shadow-xl transition-all border border-gray-700/50 flex items-center justify-center group"
+                >
+                  <h3 className="text-lg font-medium text-white group-hover:text-blue-400 transition-colors">{tech.name}</h3>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Tools & Others */}
+          <div>
+            <h3 className="text-xl font-semibold mb-6 text-blue-400 text-center">Tools & Sonstiges</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {[
+                { name: 'Git', color: '#F05032' },
+                { name: 'GitHub', color: '#181717' },
+                { name: 'VS Code', color: '#007ACC' },
+                { name: 'Figma', color: '#F24E1E' },
+                { name: 'Trello', color: '#0079BF' },
+                { name: 'npm', color: '#CB3837' },
+                { name: 'ESLint', color: '#4B32C3' }
+              ].map((tech) => (
+                <motion.div
+                  key={tech.name}
+                  whileHover={{ scale: 1.05, y: -5 }}
+                  className="bg-gray-800/50 p-4 rounded-lg shadow-lg hover:shadow-xl transition-all border border-gray-700/50 flex items-center justify-center group"
+                >
+                  <h3 className="text-lg font-medium text-white group-hover:text-blue-400 transition-colors">{tech.name}</h3>
+                </motion.div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* Projects Section */}
-      <section id="projects" className="container mx-auto px-4 py-20 relative">
+      <section id="projekte" className="container mx-auto px-4 py-20 relative">
         <div className="max-w-4xl mx-auto bg-gray-900/40 backdrop-blur-sm p-8 rounded-2xl border border-gray-800/50">
           <h2 className="text-3xl font-bold mb-12 text-center text-white">Projekte</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -315,36 +262,34 @@ export default function Home() {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="container mx-auto px-4 py-20 relative">
+      <section id="kontakt" className="container mx-auto px-4 py-20 relative">
         <div className="max-w-4xl mx-auto bg-gray-900/40 backdrop-blur-sm p-8 rounded-2xl border border-gray-800/50">
           <h2 className="text-3xl font-bold mb-8 text-white">Kontakt</h2>
           <div className="flex justify-center gap-6 mb-8">
             <motion.a
               whileHover={{ scale: 1.1, rotate: 360 }}
               transition={{ duration: 0.5 }}
-              href="https://github.com/yourusername"
+              href="https://github.com/im23b-piechockio"
               target="_blank"
               rel="noopener noreferrer"
               className="text-2xl text-gray-200 hover:text-blue-400 transition-colors"
             >
               <FaGithub />
             </motion.a>
-            <motion.a
+            <motion.div
               whileHover={{ scale: 1.1, rotate: 360 }}
               transition={{ duration: 0.5 }}
-              href="mailto:your.email@example.com"
-              className="text-2xl text-gray-200 hover:text-blue-400 transition-colors"
+              className="text-2xl text-gray-200 hover:text-blue-400 transition-colors cursor-default"
             >
               <FaEnvelope />
-            </motion.a>
-            <motion.a
+            </motion.div>
+            <motion.div
               whileHover={{ scale: 1.1, rotate: 360 }}
               transition={{ duration: 0.5 }}
-              href="tel:+1234567890"
-              className="text-2xl text-gray-200 hover:text-blue-400 transition-colors"
+              className="text-2xl text-gray-200 hover:text-blue-400 transition-colors cursor-default"
             >
               <FaPhone />
-            </motion.a>
+            </motion.div>
           </div>
           <motion.form
             initial={{ opacity: 0, y: 20 }}
@@ -358,7 +303,7 @@ export default function Home() {
             />
             <input
               type="email"
-              placeholder="Email"
+              placeholder="E-Mail"
               className="w-full p-3 mb-4 bg-gray-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 border border-gray-700/50 text-white placeholder-gray-400"
             />
             <textarea

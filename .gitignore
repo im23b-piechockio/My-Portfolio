@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
@@ -11,11 +12,16 @@
 !.yarn/releases
 !.yarn/versions
 =======
+=======
+>>>>>>> origin/master
 # dependencies
 /node_modules
 /.pnp
 .pnp.js
+<<<<<<< HEAD
 >>>>>>> dac36ce (Initial commit: Portfolio website with Next.js and Tailwind CSS)
+=======
+>>>>>>> origin/master
 
 # testing
 /coverage
@@ -36,6 +42,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 <<<<<<< HEAD
+<<<<<<< HEAD
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
@@ -45,6 +52,11 @@ yarn-error.log*
 # local env files
 .env*.local
 >>>>>>> dac36ce (Initial commit: Portfolio website with Next.js and Tailwind CSS)
+=======
+
+# local env files
+.env*.local
+>>>>>>> origin/master
 
 # vercel
 .vercel
@@ -52,7 +64,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 <<<<<<< HEAD
+<<<<<<< HEAD
 next-env.d.ts
 =======
 next-env.d.ts 
 >>>>>>> dac36ce (Initial commit: Portfolio website with Next.js and Tailwind CSS)
+=======
+next-env.d.ts 
+>>>>>>> origin/master
