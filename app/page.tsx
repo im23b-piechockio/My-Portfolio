@@ -12,6 +12,8 @@ export default function Home() {
   const [konamiCode, setKonamiCode] = useState('')
   const [showBackToTop, setShowBackToTop] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [mouse, setMouse] = useState({ x: 0.5, y: 0.5 })
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,6 +22,110 @@ export default function Home() {
 
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    let animationId: number
+    let width = window.innerWidth
+    let height = window.innerHeight
+    canvas.width = width
+    canvas.height = height
+
+    // Aurora Wellen
+    function drawAurora(t: number) {
+      for (let i = 0; i < 3; i++) {
+        ctx.save()
+        ctx.globalAlpha = 0.18 + 0.08 * i
+        ctx.beginPath()
+        for (let x = 0; x <= width; x += 2) {
+          const y =
+            height / 2 +
+            Math.sin((x / 200) + t / (1200 - i * 200) + i) * (80 + 30 * i) +
+            Math.sin((x / 80) + t / (800 + i * 100)) * (30 + 10 * i) * mouse.y
+          if (x === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        }
+        const gradient = ctx.createLinearGradient(0, height / 2, width, height)
+        gradient.addColorStop(0, i === 0 ? '#60A5FA' : i === 1 ? '#a78bfa' : '#f472b6')
+        gradient.addColorStop(1, 'transparent')
+        ctx.strokeStyle = gradient
+        ctx.lineWidth = 18 - i * 4
+        ctx.shadowBlur = 32 - i * 8
+        ctx.shadowColor = gradient
+        ctx.stroke()
+        ctx.restore()
+      }
+    }
+
+    // Geometrische 3D-Formen (rotierende Würfel)
+    function drawCubes(t: number) {
+      for (let i = 0; i < 4; i++) {
+        const cx = width * (0.2 + 0.2 * i) + Math.sin(t / 1000 + i) * 40 * mouse.x
+        const cy = height * (0.2 + 0.2 * i) + Math.cos(t / 1200 + i) * 40 * mouse.y
+        ctx.save()
+        ctx.translate(cx, cy)
+        ctx.rotate((t / 1200 + i) * (mouse.x + 0.5))
+        ctx.strokeStyle = `rgba(255,255,255,0.13)`
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        for (let j = 0; j < 4; j++) {
+          ctx.moveTo(Math.cos(j * Math.PI / 2) * 30, Math.sin(j * Math.PI / 2) * 30)
+          ctx.lineTo(Math.cos(((j + 1) % 4) * Math.PI / 2) * 30, Math.sin(((j + 1) % 4) * Math.PI / 2) * 30)
+        }
+        ctx.stroke()
+        ctx.restore()
+      }
+    }
+
+    // Partikel
+    function drawParticles(t: number) {
+      for (let i = 0; i < 60; i++) {
+        const angle = (i * Math.PI * 2) / 60 + (t / 3000) * (i % 2 === 0 ? 1 : -1)
+        const r = 120 + 80 * Math.sin(t / (900 + i * 10))
+        const x = width / 2 + Math.cos(angle) * r * mouse.x
+        const y = height / 2 + Math.sin(angle) * r * mouse.y
+        ctx.save()
+        ctx.beginPath()
+        ctx.arc(x, y, 2 + Math.sin(t / (400 + i * 5)) * 1.5, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(255,255,255,0.18)`
+        ctx.shadowBlur = 8
+        ctx.shadowColor = '#60A5FA'
+        ctx.fill()
+        ctx.restore()
+      }
+    }
+
+    function animate(t: number) {
+      ctx.clearRect(0, 0, width, height)
+      drawAurora(t)
+      drawCubes(t)
+      drawParticles(t)
+      animationId = requestAnimationFrame(animate)
+    }
+    animate(0)
+
+    function handleResize() {
+      width = window.innerWidth
+      height = window.innerHeight
+      canvas.width = width
+      canvas.height = height
+    }
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      cancelAnimationFrame(animationId)
+    }
+  }, [mouse])
+
+  useEffect(() => {
+    function handleMouseMove(e: MouseEvent) {
+      setMouse({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight })
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [])
 
   const scrollToSection = (sectionId: string) => {
@@ -31,16 +137,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-dark text-white relative overflow-hidden">
-      {/* Professional Gradient Background */}
-      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-navy-900" />
-
-      {/* Subtle Pattern Overlay */}
-      <div className="fixed inset-0 opacity-10">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, #ffffff 1px, transparent 0)`,
-          backgroundSize: '40px 40px'
-        }} />
-      </div>
+      {/* Special Animated Aurora/3D/Particles Background */}
+      <canvas ref={canvasRef} className="fixed inset-0 w-full h-full z-0 pointer-events-none" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh' }} />
 
       {/* Navbar */}
       <motion.nav 
@@ -133,7 +231,6 @@ export default function Home() {
                 { name: 'HTML', color: '#E34F26' },
                 { name: 'CSS', color: '#1572B6' },
                 { name: 'Python', color: '#3776AB' },
-                { name: 'Java', color: '#007396' },
                 { name: 'SQL', color: '#336791' },
                 { name: 'Bash', color: '#4EAA25' }
               ].map((tech) => (
@@ -156,8 +253,7 @@ export default function Home() {
                 { name: 'React', color: '#61DAFB' },
                 { name: 'Next.js', color: '#000000' },
                 { name: 'Tailwind CSS', color: '#06B6D4' },
-                { name: 'Bootstrap', color: '#7952B3' },
-                { name: 'Vite', color: '#646CFF' }
+                { name: 'Bootstrap', color: '#7952B3' }
               ].map((tech) => (
                 <motion.div
                   key={tech.name}
@@ -178,7 +274,6 @@ export default function Home() {
                 { name: 'Node.js', color: '#339933' },
                 { name: 'MongoDB', color: '#47A248' },
                 { name: 'MySQL', color: '#4479A1' },
-                { name: 'REST API', color: '#FF6B6B' },
                 { name: 'Docker', color: '#2496ED' },
                 { name: 'AWS', color: '#FF9900' }
               ].map((tech) => (
@@ -203,8 +298,7 @@ export default function Home() {
                 { name: 'VS Code', color: '#007ACC' },
                 { name: 'Figma', color: '#F24E1E' },
                 { name: 'Trello', color: '#0079BF' },
-                { name: 'npm', color: '#CB3837' },
-                { name: 'ESLint', color: '#4B32C3' }
+                { name: 'npm', color: '#CB3837' }
               ].map((tech) => (
                 <motion.div
                   key={tech.name}
