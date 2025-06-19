@@ -192,9 +192,9 @@ export default function Home() {
         ctx.bezierCurveTo(8, 18, -8, 18, -12, 8);
         ctx.bezierCurveTo(-18, -8, -8, -12, 0, 0);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(255, 182, 193, 0.55)'; // Sakura pink
+        ctx.fillStyle = 'rgba(56, 224, 210, 0.55)'; // Türkis/Blaugrün
         ctx.shadowBlur = 8;
-        ctx.shadowColor = '#f9a8d4';
+        ctx.shadowColor = '#38e0d2';
         ctx.fill();
         ctx.restore();
       }
