@@ -16,8 +16,7 @@ export default function Home() {
   const [mouse, setMouse] = useState<{ x: number, y: number, inside: boolean }>({ x: 0.5, y: 0.5, inside: true })
   const swarmDrift = useRef<{ dx: number, dy: number }>({ dx: (Math.random() - 0.5) * 0.002, dy: (Math.random() - 0.5) * 0.002 });
   const NUM_LEAVES = 300;
-  const swarmCenter = useRef<{ x: number, y: number, dx: number, dy: number }>({ x: 0.5, y: 0.5, dx: (Math.random() - 0.5) * 0.001, dy: (Math.random() - 0.5) * 0.001 });
-  const leaves = useRef<{ x: number, y: number, vx: number, vy: number, rot: number, rotSpeed: number }[]>([]);
+  const leaves = useRef<{ x: number, y: number, vx: number, vy: number, driftX: number, driftY: number, rot: number, rotSpeed: number }[]>([]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -47,6 +46,8 @@ export default function Home() {
         y: Math.random(),
         vx: (Math.random() - 0.5) * 0.01,
         vy: (Math.random() - 0.5) * 0.01,
+        driftX: (Math.random() - 0.5) * 0.0007,
+        driftY: (Math.random() - 0.5) * 0.0007,
         rot: Math.random() * Math.PI * 2,
         rotSpeed: (Math.random() - 0.5) * 0.03
       }));
@@ -85,8 +86,9 @@ export default function Home() {
       if (!ctx) return;
       // Schwarm-Parameter
       const alignStrength = 0.32;
-      const cohesionStrength = 0.03;
-      const separationStrength = 0.62;
+      const cohesionStrength = 0.0;
+      const separationStrength = 0.0;
+      const driftStrength = 0.7;
       const mouseRepelStrength = 0.18;
       const maxSpeed = 0.0010;
       const returnToSwarmStrength = 0.07;
@@ -129,12 +131,9 @@ export default function Home() {
         // Alignment
         leaf.vx += (avgVX - leaf.vx) * alignStrength;
         leaf.vy += (avgVY - leaf.vy) * alignStrength;
-        // Cohesion: zum Schwarmzentrum, nicht zu Nachbarn
-        leaf.vx += (swarmCenter.current.x - leaf.x) * cohesionStrength;
-        leaf.vy += (swarmCenter.current.y - leaf.y) * cohesionStrength;
-        // Separation
-        leaf.vx += sepX * separationStrength;
-        leaf.vy += sepY * separationStrength;
+        // Individuelle Drift
+        leaf.vx += leaf.driftX * driftStrength;
+        leaf.vy += leaf.driftY * driftStrength;
         // Mausabstoßung (Hai)
         const dx = leaf.x - mouse.x;
         const dy = leaf.y - mouse.y;
@@ -157,25 +156,12 @@ export default function Home() {
         if (leaf.x > 1) { leaf.x = 1; leaf.vx *= -0.7; }
         if (leaf.y < 0) { leaf.y = 0; leaf.vy *= -0.7; }
         if (leaf.y > 1) { leaf.y = 1; leaf.vy *= -0.7; }
-        // Wenn ein Blatt zu weit vom Schwarmzentrum entfernt ist, wird es sanft zurückgezogen
-        const distToSwarm = Math.sqrt((leaf.x - swarmCenter.current.x) ** 2 + (leaf.y - swarmCenter.current.y) ** 2);
-        if (distToSwarm > 0.12) {
-          leaf.vx += (swarmCenter.current.x - leaf.x) * returnToSwarmStrength;
-          leaf.vy += (swarmCenter.current.y - leaf.y) * returnToSwarmStrength;
-        }
-        // Schwarmzentrum driftet immer (auch ohne Maus)
-        swarmCenter.current.x += swarmCenter.current.dx;
-        swarmCenter.current.y += swarmCenter.current.dy;
-        // Bounce an Rändern
-        if (swarmCenter.current.x < 0.15 || swarmCenter.current.x > 0.85) swarmCenter.current.dx *= -1;
-        if (swarmCenter.current.y < 0.15 || swarmCenter.current.y > 0.85) swarmCenter.current.dy *= -1;
-        // Leichte Richtungsänderung
-        if (Math.random() < 0.01) {
-          swarmCenter.current.dx += (Math.random() - 0.5) * 0.0005;
-          swarmCenter.current.dy += (Math.random() - 0.5) * 0.0005;
-          // Clamp
-          swarmCenter.current.dx = Math.max(-0.0015, Math.min(0.0015, swarmCenter.current.dx));
-          swarmCenter.current.dy = Math.max(-0.0015, Math.min(0.0015, swarmCenter.current.dy));
+        // Rückkehrkraft nur, wenn Blatt weit weg UND Maus war in der Nähe (also "getrennt")
+        const distToSwarm = Math.sqrt((leaf.x - centerX) ** 2 + (leaf.y - centerY) ** 2);
+        const distToMouse = Math.sqrt((leaf.x - mouse.x) ** 2 + (leaf.y - mouse.y) ** 2);
+        if (distToSwarm > 0.35 && distToMouse > 0.18) {
+          leaf.vx += (centerX - leaf.x) * returnToSwarmStrength;
+          leaf.vy += (centerY - leaf.y) * returnToSwarmStrength;
         }
         // Rotation
         leaf.rot += leaf.rotSpeed;
@@ -192,7 +178,7 @@ export default function Home() {
         ctx.bezierCurveTo(8, 18, -8, 18, -12, 8);
         ctx.bezierCurveTo(-18, -8, -8, -12, 0, 0);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(56, 224, 210, 0.55)'; // Türkis/Blaugrün
+        ctx.fillStyle = 'rgba(56, 224, 210, 0.32)'; // Weniger hell
         ctx.shadowBlur = 8;
         ctx.shadowColor = '#38e0d2';
         ctx.fill();
