@@ -14,6 +14,8 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [mouse, setMouse] = useState({ x: 0.5, y: 0.5 })
+  const NUM_LEAVES = 60;
+  const leaves = useRef<{ x: number, y: number, angle: number, speed: number, rot: number, rotSpeed: number }[]>([]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,50 +33,46 @@ export default function Home() {
     let animationId: number
     let width = window.innerWidth
     let height = window.innerHeight
-    canvas.width = width
-    canvas.height = height
+    if (canvas) {
+      canvas.width = width
+      canvas.height = height
+    }
+
+    // Init Partikel-Orbits
+    if (leaves.current.length !== NUM_LEAVES) {
+      leaves.current = Array.from({length: NUM_LEAVES}, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        angle: Math.random() * Math.PI * 2,
+        speed: 0.5 + Math.random() * 1.2,
+        rot: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.03
+      }));
+    }
 
     // Aurora Wellen
     function drawAurora(t: number) {
+      if (!ctx) return;
       for (let i = 0; i < 3; i++) {
         ctx.save()
-        ctx.globalAlpha = 0.18 + 0.08 * i
+        ctx.globalAlpha = 0.32 + 0.13 * i
         ctx.beginPath()
         for (let x = 0; x <= width; x += 2) {
+          // Maus beeinflusst Amplitude und Phase
+          const mx = (mouse.x - 0.5) * 2
+          const my = (mouse.y - 0.5) * 2
           const y =
             height / 2 +
-            Math.sin((x / 200) + t / (1200 - i * 200) + i) * (80 + 30 * i) +
-            Math.sin((x / 80) + t / (800 + i * 100)) * (30 + 10 * i) * mouse.y
+            Math.sin((x / (200 + 100 * mx)) + t / (1200 - i * 200) + i + mx) * (80 + 30 * i + 40 * mx) +
+            Math.sin((x / (80 + 40 * mx)) + t / (800 + i * 100) + mx) * (30 + 10 * i + 20 * my)
           if (x === 0) ctx.moveTo(x, y)
           else ctx.lineTo(x, y)
         }
-        const gradient = ctx.createLinearGradient(0, height / 2, width, height)
-        gradient.addColorStop(0, i === 0 ? '#60A5FA' : i === 1 ? '#a78bfa' : '#f472b6')
-        gradient.addColorStop(1, 'transparent')
-        ctx.strokeStyle = gradient
-        ctx.lineWidth = 18 - i * 4
-        ctx.shadowBlur = 32 - i * 8
-        ctx.shadowColor = gradient
-        ctx.stroke()
-        ctx.restore()
-      }
-    }
-
-    // Geometrische 3D-Formen (rotierende Würfel)
-    function drawCubes(t: number) {
-      for (let i = 0; i < 4; i++) {
-        const cx = width * (0.2 + 0.2 * i) + Math.sin(t / 1000 + i) * 40 * mouse.x
-        const cy = height * (0.2 + 0.2 * i) + Math.cos(t / 1200 + i) * 40 * mouse.y
-        ctx.save()
-        ctx.translate(cx, cy)
-        ctx.rotate((t / 1200 + i) * (mouse.x + 0.5))
-        ctx.strokeStyle = `rgba(255,255,255,0.13)`
-        ctx.lineWidth = 3
-        ctx.beginPath()
-        for (let j = 0; j < 4; j++) {
-          ctx.moveTo(Math.cos(j * Math.PI / 2) * 30, Math.sin(j * Math.PI / 2) * 30)
-          ctx.lineTo(Math.cos(((j + 1) % 4) * Math.PI / 2) * 30, Math.sin(((j + 1) % 4) * Math.PI / 2) * 30)
-        }
+        const color = i === 0 ? '#93c5fd' : i === 1 ? '#c4b5fd' : '#f9a8d4';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 22 - i * 4
+        ctx.shadowBlur = 44 - i * 8
+        ctx.shadowColor = color;
         ctx.stroke()
         ctx.restore()
       }
@@ -82,26 +80,57 @@ export default function Home() {
 
     // Partikel
     function drawParticles(t: number) {
-      for (let i = 0; i < 60; i++) {
-        const angle = (i * Math.PI * 2) / 60 + (t / 3000) * (i % 2 === 0 ? 1 : -1)
-        const r = 120 + 80 * Math.sin(t / (900 + i * 10))
-        const x = width / 2 + Math.cos(angle) * r * mouse.x
-        const y = height / 2 + Math.sin(angle) * r * mouse.y
-        ctx.save()
-        ctx.beginPath()
-        ctx.arc(x, y, 2 + Math.sin(t / (400 + i * 5)) * 1.5, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(255,255,255,0.18)`
-        ctx.shadowBlur = 8
-        ctx.shadowColor = '#60A5FA'
-        ctx.fill()
-        ctx.restore()
+      if (!ctx) return;
+      for (let i = 0; i < NUM_LEAVES; i++) {
+        let leaf = leaves.current[i];
+        // Schwarmbewegung: Zielrichtung ist Mittelwert aller Blätter + leichte Zufallsbewegung
+        let centerX = 0, centerY = 0;
+        for (let j = 0; j < NUM_LEAVES; j++) {
+          if (i !== j) {
+            centerX += leaves.current[j].x;
+            centerY += leaves.current[j].y;
+          }
+        }
+        centerX /= (NUM_LEAVES - 1);
+        centerY /= (NUM_LEAVES - 1);
+        // Mausabstoßung
+        let dx = leaf.x - mouse.x;
+        let dy = leaf.y - mouse.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        let avoid = dist < 0.15 ? 0.04 / (dist + 0.01) : 0;
+        let vx = (centerX - leaf.x) * 0.01 + (Math.random() - 0.5) * 0.002 - dx * avoid;
+        let vy = (centerY - leaf.y) * 0.01 + (Math.random() - 0.5) * 0.002 - dy * avoid;
+        leaf.x += vx * leaf.speed;
+        leaf.y += vy * leaf.speed;
+        // Begrenzung auf Viewport
+        leaf.x = Math.max(0, Math.min(1, leaf.x));
+        leaf.y = Math.max(0, Math.min(1, leaf.y));
+        // Rotation
+        leaf.rot += leaf.rotSpeed;
+        // Zeichne Sakura-Blatt (vereinfachtes Path)
+        const px = leaf.x * width;
+        const py = leaf.y * height;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(leaf.rot);
+        ctx.scale(1.2, 1.2);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(8, -12, 18, -8, 12, 8);
+        ctx.bezierCurveTo(8, 18, -8, 18, -12, 8);
+        ctx.bezierCurveTo(-18, -8, -8, -12, 0, 0);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(255, 182, 193, 0.55)'; // Sakura pink
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#f9a8d4';
+        ctx.fill();
+        ctx.restore();
       }
     }
 
     function animate(t: number) {
       ctx.clearRect(0, 0, width, height)
       drawAurora(t)
-      drawCubes(t)
       drawParticles(t)
       animationId = requestAnimationFrame(animate)
     }
@@ -110,8 +139,10 @@ export default function Home() {
     function handleResize() {
       width = window.innerWidth
       height = window.innerHeight
-      canvas.width = width
-      canvas.height = height
+      if (canvas) {
+        canvas.width = width
+        canvas.height = height
+      }
     }
     window.addEventListener('resize', handleResize)
     return () => {
@@ -122,10 +153,18 @@ export default function Home() {
 
   useEffect(() => {
     function handleMouseMove(e: MouseEvent) {
-      setMouse({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight })
+      const clamp = (v: number) => Math.max(0, Math.min(1, v));
+      setMouse({ x: clamp(e.clientX / window.innerWidth), y: clamp(e.clientY / window.innerHeight) })
+    }
+    function handleMouseLeave() {
+      setMouse({ x: 0.5, y: 0.5 });
     }
     window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseleave', handleMouseLeave)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseleave', handleMouseLeave)
+    }
   }, [])
 
   const scrollToSection = (sectionId: string) => {
@@ -166,7 +205,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="flex flex-col items-center text-center w-full max-w-4xl mx-auto relative z-10 bg-gray-900/40 backdrop-blur-sm p-8 rounded-2xl border border-gray-800/50"
+          className="flex flex-col items-center text-center w-full max-w-4xl mx-auto relative z-10 p-8 rounded-2xl"
         >
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
@@ -218,7 +257,7 @@ export default function Home() {
 
       {/* Skills Section */}
       <section id="technologien-tools" className="container mx-auto px-4 py-20 relative">
-        <div className="max-w-6xl mx-auto bg-gray-900/40 backdrop-blur-sm p-8 rounded-2xl border border-gray-800/50">
+        <div className="max-w-6xl mx-auto p-8 rounded-2xl">
           <h2 className="text-3xl font-bold mb-12 text-center text-white">Technologien & Tools</h2>
           
           {/* Programming Languages */}
@@ -315,7 +354,7 @@ export default function Home() {
 
       {/* Projects Section */}
       <section id="projekte" className="container mx-auto px-4 py-20 relative">
-        <div className="max-w-4xl mx-auto bg-gray-900/40 backdrop-blur-sm p-8 rounded-2xl border border-gray-800/50">
+        <div className="max-w-4xl mx-auto p-8 rounded-2xl">
           <h2 className="text-3xl font-bold mb-12 text-center text-white">Projekte</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {[
@@ -357,7 +396,7 @@ export default function Home() {
 
       {/* Contact Section */}
       <section id="kontakt" className="container mx-auto px-4 py-20 relative">
-        <div className="max-w-4xl mx-auto bg-gray-900/40 backdrop-blur-sm p-8 rounded-2xl border border-gray-800/50">
+        <div className="max-w-4xl mx-auto p-8 rounded-2xl">
           <h2 className="text-3xl font-bold mb-8 text-white">Kontakt</h2>
           <div className="flex justify-center gap-6 mb-8">
             <motion.a
