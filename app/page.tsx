@@ -13,9 +13,11 @@ export default function Home() {
   const [showBackToTop, setShowBackToTop] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [mouse, setMouse] = useState({ x: 0.5, y: 0.5 })
-  const NUM_LEAVES = 60;
-  const leaves = useRef<{ x: number, y: number, angle: number, speed: number, rot: number, rotSpeed: number }[]>([]);
+  const [mouse, setMouse] = useState<{ x: number, y: number, inside: boolean }>({ x: 0.5, y: 0.5, inside: true })
+  const swarmDrift = useRef<{ dx: number, dy: number }>({ dx: (Math.random() - 0.5) * 0.002, dy: (Math.random() - 0.5) * 0.002 });
+  const NUM_LEAVES = 300;
+  const swarmCenter = useRef<{ x: number, y: number, dx: number, dy: number }>({ x: 0.5, y: 0.5, dx: (Math.random() - 0.5) * 0.001, dy: (Math.random() - 0.5) * 0.001 });
+  const leaves = useRef<{ x: number, y: number, vx: number, vy: number, rot: number, rotSpeed: number }[]>([]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -43,8 +45,8 @@ export default function Home() {
       leaves.current = Array.from({length: NUM_LEAVES}, () => ({
         x: Math.random(),
         y: Math.random(),
-        angle: Math.random() * Math.PI * 2,
-        speed: 0.5 + Math.random() * 1.2,
+        vx: (Math.random() - 0.5) * 0.01,
+        vy: (Math.random() - 0.5) * 0.01,
         rot: Math.random() * Math.PI * 2,
         rotSpeed: (Math.random() - 0.5) * 0.03
       }));
@@ -81,30 +83,100 @@ export default function Home() {
     // Partikel
     function drawParticles(t: number) {
       if (!ctx) return;
+      // Schwarm-Parameter
+      const alignStrength = 0.32;
+      const cohesionStrength = 0.03;
+      const separationStrength = 0.62;
+      const mouseRepelStrength = 0.18;
+      const maxSpeed = 0.0010;
+      const returnToSwarmStrength = 0.07;
       for (let i = 0; i < NUM_LEAVES; i++) {
         let leaf = leaves.current[i];
-        // Schwarmbewegung: Zielrichtung ist Mittelwert aller Blätter + leichte Zufallsbewegung
+        // Alignment: Mittelrichtung der Nachbarn
+        let avgVX = 0, avgVY = 0, count = 0;
+        // Cohesion: Mittelpunkt der Nachbarn
         let centerX = 0, centerY = 0;
+        // Separation: Abstand halten
+        let sepX = 0, sepY = 0;
         for (let j = 0; j < NUM_LEAVES; j++) {
           if (i !== j) {
-            centerX += leaves.current[j].x;
-            centerY += leaves.current[j].y;
+            const other = leaves.current[j];
+            const dx = other.x - leaf.x;
+            const dy = other.y - leaf.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 0.012) {
+              sepX -= (dx) / (dist + 0.01);
+              sepY -= (dy) / (dist + 0.01);
+            }
+            if (dist < 0.045) {
+              avgVX += other.vx;
+              avgVY += other.vy;
+              centerX += other.x;
+              centerY += other.y;
+              count++;
+            }
           }
         }
-        centerX /= (NUM_LEAVES - 1);
-        centerY /= (NUM_LEAVES - 1);
-        // Mausabstoßung
-        let dx = leaf.x - mouse.x;
-        let dy = leaf.y - mouse.y;
-        let dist = Math.sqrt(dx * dx + dy * dy);
-        let avoid = dist < 0.15 ? 0.04 / (dist + 0.01) : 0;
-        let vx = (centerX - leaf.x) * 0.01 + (Math.random() - 0.5) * 0.002 - dx * avoid;
-        let vy = (centerY - leaf.y) * 0.01 + (Math.random() - 0.5) * 0.002 - dy * avoid;
-        leaf.x += vx * leaf.speed;
-        leaf.y += vy * leaf.speed;
-        // Begrenzung auf Viewport
-        leaf.x = Math.max(0, Math.min(1, leaf.x));
-        leaf.y = Math.max(0, Math.min(1, leaf.y));
+        if (count > 0) {
+          avgVX /= count;
+          avgVY /= count;
+          centerX /= count;
+          centerY /= count;
+        } else {
+          centerX = leaf.x;
+          centerY = leaf.y;
+        }
+        // Alignment
+        leaf.vx += (avgVX - leaf.vx) * alignStrength;
+        leaf.vy += (avgVY - leaf.vy) * alignStrength;
+        // Cohesion: zum Schwarmzentrum, nicht zu Nachbarn
+        leaf.vx += (swarmCenter.current.x - leaf.x) * cohesionStrength;
+        leaf.vy += (swarmCenter.current.y - leaf.y) * cohesionStrength;
+        // Separation
+        leaf.vx += sepX * separationStrength;
+        leaf.vy += sepY * separationStrength;
+        // Mausabstoßung (Hai)
+        const dx = leaf.x - mouse.x;
+        const dy = leaf.y - mouse.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (mouse.inside && dist < 0.18) {
+          leaf.vx += (dx / (dist + 0.01)) * mouseRepelStrength;
+          leaf.vy += (dy / (dist + 0.01)) * mouseRepelStrength;
+        }
+        // Geschwindigkeit begrenzen
+        const speed = Math.sqrt(leaf.vx * leaf.vx + leaf.vy * leaf.vy);
+        if (speed > maxSpeed) {
+          leaf.vx = (leaf.vx / speed) * maxSpeed;
+          leaf.vy = (leaf.vy / speed) * maxSpeed;
+        }
+        // Bewegung
+        leaf.x += leaf.vx;
+        leaf.y += leaf.vy;
+        // Begrenzung auf Viewport (und Bounce)
+        if (leaf.x < 0) { leaf.x = 0; leaf.vx *= -0.7; }
+        if (leaf.x > 1) { leaf.x = 1; leaf.vx *= -0.7; }
+        if (leaf.y < 0) { leaf.y = 0; leaf.vy *= -0.7; }
+        if (leaf.y > 1) { leaf.y = 1; leaf.vy *= -0.7; }
+        // Wenn ein Blatt zu weit vom Schwarmzentrum entfernt ist, wird es sanft zurückgezogen
+        const distToSwarm = Math.sqrt((leaf.x - swarmCenter.current.x) ** 2 + (leaf.y - swarmCenter.current.y) ** 2);
+        if (distToSwarm > 0.12) {
+          leaf.vx += (swarmCenter.current.x - leaf.x) * returnToSwarmStrength;
+          leaf.vy += (swarmCenter.current.y - leaf.y) * returnToSwarmStrength;
+        }
+        // Schwarmzentrum driftet immer (auch ohne Maus)
+        swarmCenter.current.x += swarmCenter.current.dx;
+        swarmCenter.current.y += swarmCenter.current.dy;
+        // Bounce an Rändern
+        if (swarmCenter.current.x < 0.15 || swarmCenter.current.x > 0.85) swarmCenter.current.dx *= -1;
+        if (swarmCenter.current.y < 0.15 || swarmCenter.current.y > 0.85) swarmCenter.current.dy *= -1;
+        // Leichte Richtungsänderung
+        if (Math.random() < 0.01) {
+          swarmCenter.current.dx += (Math.random() - 0.5) * 0.0005;
+          swarmCenter.current.dy += (Math.random() - 0.5) * 0.0005;
+          // Clamp
+          swarmCenter.current.dx = Math.max(-0.0015, Math.min(0.0015, swarmCenter.current.dx));
+          swarmCenter.current.dy = Math.max(-0.0015, Math.min(0.0015, swarmCenter.current.dy));
+        }
         // Rotation
         leaf.rot += leaf.rotSpeed;
         // Zeichne Sakura-Blatt (vereinfachtes Path)
@@ -113,7 +185,7 @@ export default function Home() {
         ctx.save();
         ctx.translate(px, py);
         ctx.rotate(leaf.rot);
-        ctx.scale(1.2, 1.2);
+        ctx.scale(0.19, 0.19);
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.bezierCurveTo(8, -12, 18, -8, 12, 8);
@@ -154,10 +226,13 @@ export default function Home() {
   useEffect(() => {
     function handleMouseMove(e: MouseEvent) {
       const clamp = (v: number) => Math.max(0, Math.min(1, v));
-      setMouse({ x: clamp(e.clientX / window.innerWidth), y: clamp(e.clientY / window.innerHeight) })
+      setMouse({ x: clamp(e.clientX / window.innerWidth), y: clamp(e.clientY / window.innerHeight), inside: true })
     }
     function handleMouseLeave() {
-      setMouse({ x: 0.5, y: 0.5 });
+      setMouse({ x: 0.5, y: 0.5, inside: false });
+      // Neue Drift-Richtung, wenn Maus rausgeht
+      swarmDrift.current.dx = (Math.random() - 0.5) * 0.002;
+      swarmDrift.current.dy = (Math.random() - 0.5) * 0.002;
     }
     window.addEventListener('mousemove', handleMouseMove)
     window.addEventListener('mouseleave', handleMouseLeave)
